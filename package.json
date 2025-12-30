@@ -1,0 +1,45 @@
+{
+    "name": "backend",
+    "version": "1.0.0",
+    "description": "Backend API for Chai App - Standalone Express server with Google OAuth and PostgreSQL",
+    "main": "dist/server.js",
+    "type": "module",
+    "scripts": {
+        "dev": "nodemon --watch src --exec npx tsx src/server.ts",
+        "build": "tsc",
+        "start": "node dist/server.js",
+        "db:migrate": "node src/scripts/migrate.js",
+        "test": "vitest"
+    },
+    "dependencies": {
+        "bcryptjs": "^3.0.3",
+        "cors": "^2.8.5",
+        "dotenv": "^16.3.1",
+        "express": "^4.18.2",
+        "express-rate-limit": "^7.1.5",
+        "google-auth-library": "^9.4.1",
+        "helmet": "^7.1.0",
+        "jsonwebtoken": "^9.0.2",
+        "nodemailer": "^7.0.12",
+        "pg": "^8.11.3",
+        "uuid": "^9.0.1"
+    },
+    "devDependencies": {
+        "@types/bcryptjs": "^2.4.6",
+        "@types/cors": "^2.8.17",
+        "@types/express": "^4.17.21",
+        "@types/jsonwebtoken": "^9.0.5",
+        "@types/node": "^20.10.5",
+        "@types/nodemailer": "^7.0.4",
+        "@types/pg": "^8.10.9",
+        "@types/supertest": "^6.0.3",
+        "@types/uuid": "^9.0.7",
+        "supertest": "^7.1.4",
+        "tsx": "^4.7.0",
+        "typescript": "^5.3.3",
+        "vitest": "^4.0.16"
+    },
+    "engines": {
+        "node": ">=20.0.0"
+    }
+}
