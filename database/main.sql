@@ -1,13 +1,4 @@
---
--- PostgreSQL database dump
---
 
-\restrict 6X5gJXuYKEhYg24bi67CcOCcNrjDGTk9YweOoGvga3hxcXUcvs7oly2Qsfwit03
-
--- Dumped from database version 15.15 (Homebrew)
--- Dumped by pg_dump version 18.0
-
--- Started on 2025-12-30 17:20:33 IST
 
 SET statement_timeout = 0;
 SET lock_timeout = 0;
@@ -765,6 +756,3 @@ ALTER TABLE ONLY public.subscriptions
 --
 -- PostgreSQL database dump complete
 --
-
-\unrestrict 6X5gJXuYKEhYg24bi67CcOCcNrjDGTk9YweOoGvga3hxcXUcvs7oly2Qsfwit03
-
