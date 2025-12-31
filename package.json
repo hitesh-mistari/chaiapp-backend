@@ -5,7 +5,7 @@
     "main": "dist/server.js",
     "type": "module",
     "scripts": {
-        "dev": "nodemon --watch src --exec npx tsx src/server.ts",
+        "dev": "npx tsx watch src/server.ts",
         "build": "tsc",
         "start": "npx tsx src/server.ts",
         "db:migrate": "node src/scripts/migrate.js",

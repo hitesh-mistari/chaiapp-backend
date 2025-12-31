@@ -1,0 +1,37 @@
+[
+  {
+    "id": "TC001",
+    "title": "auth api google login functionality",
+    "description": "Test the Google Sign-In authentication endpoint to ensure it securely verifies user credentials, creates user sessions, and automatically creates Store data upon registration."
+  },
+  {
+    "id": "TC002",
+    "title": "auth api guest login functionality",
+    "description": "Verify the guest login endpoint allows users to access the system without credentials and creates a temporary session with associated Store data."
+  },
+  {
+    "id": "TC003",
+    "title": "auth api email password login fallback",
+    "description": "Validate the email/password authentication fallback endpoint for secure credential verification, session creation, and Store setup."
+  },
+  {
+    "id": "TC004",
+    "title": "customer management api customer crud operations",
+    "description": "Test the CRUD operations for customers including creation, retrieval, update, and deletion, ensuring data integrity and correct linkage to logs/khata."
+  },
+  {
+    "id": "TC005",
+    "title": "payment billing api payment recording and verification",
+    "description": "Verify payment recording and verification endpoints correctly update ledger balances, reflect payment history, and handle payment receipt uploads."
+  },
+  {
+    "id": "TC006",
+    "title": "affiliate api referral tracking and payout requests",
+    "description": "Test the affiliate API for unique referral code generation, signup tracking, prevention of self-referrals, commission tracking, and payout request validation."
+  },
+  {
+    "id": "TC007",
+    "title": "public ledger api secure customer ledger access",
+    "description": "Validate that public ledger URLs securely display only the respective customer's dues and transaction records without requiring login."
+  }
+]

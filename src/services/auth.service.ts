@@ -53,9 +53,11 @@ export async function verifyGoogleToken(idToken: string): Promise<GoogleUser> {
             name: payload.name || payload.email!,
             picture: payload.picture,
         };
-    } catch (error) {
-        console.error('Google token verification failed:', error);
-        throw new Error('Invalid Google token');
+    } catch (error: any) {
+        console.error('Google token verification failed:', error.message);
+        console.error('Expected Audience:', process.env.GOOGLE_CLIENT_ID);
+        // Throw the original error message to help with debugging
+        throw new Error(`Invalid Google token: ${error.message}`);
     }
 }
 

@@ -1,0 +1,47 @@
+{
+    "tech_stack": [
+        "Node.js",
+        "Express",
+        "TypeScript",
+        "PostgreSQL",
+        "Google Auth Library"
+    ],
+    "features": [
+        {
+            "name": "Auth API",
+            "description": "Authentication endpoints for Google Login, Guest Login, and User Management",
+            "files": [
+                "src/routes/auth.routes.ts",
+                "src/services/auth.service.ts"
+            ]
+        },
+        {
+            "name": "Customer Management API",
+            "description": "CRUD operations for Customers and their Logs/Khata",
+            "files": [
+                "src/routes/customers.routes.ts"
+            ]
+        },
+        {
+            "name": "Payment & Billing API",
+            "description": "Payment recording, verification, and Ledger queries",
+            "files": [
+                "src/routes/customers.routes.ts"
+            ]
+        },
+        {
+            "name": "Affiliate API",
+            "description": "Affiliate program logic, referral tracking, and payout requests",
+            "files": [
+                "src/routes/affiliate.routes.ts"
+            ]
+        },
+        {
+            "name": "Public Ledger API",
+            "description": "Public status checking for customers",
+            "files": [
+                "src/routes/public.routes.ts"
+            ]
+        }
+    ]
+}

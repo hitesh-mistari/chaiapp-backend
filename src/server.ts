@@ -138,7 +138,7 @@ app.use(cors({
     },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-CSRF-Token'],
+    // allowedHeaders: Remove to allow all headers requested by client
     maxAge: 86400 // 24 hours
 }));
 

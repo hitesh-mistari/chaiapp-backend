@@ -8,3 +8,4 @@ coverage
 .idea
 public/uploads/*
 !public/uploads/.gitkeep
+

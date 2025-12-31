@@ -433,13 +433,23 @@ router.post('/:id/payments', async (req: AuthRequest, res: Response) => {
         // Use current timestamp if paidAt not provided
         const paymentDate = paidAt || Date.now();
 
+        const newPayment = {
+            id: paymentId || uuidv4(),
+            customerId,
+            storeId,
+            amount,
+            monthStr,
+            paidAt: paymentDate,
+            status: 'completed'
+        };
+
         await query(
             `INSERT INTO payments (id, customer_id, store_id, amount, month_str, paid_at, status)
              VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-            [paymentId || uuidv4(), customerId, storeId, amount, monthStr, paymentDate, 'completed']
+            [newPayment.id, newPayment.customerId, newPayment.storeId, newPayment.amount, newPayment.monthStr, newPayment.paidAt, newPayment.status]
         );
 
-        return res.json({ message: 'Payment added' });
+        return res.json(newPayment);
     } catch (error) {
         console.error('Add payment error:', error);
         return res.status(500).json({ error: 'Failed to add payment' });
@@ -476,6 +486,34 @@ router.patch('/payments/:id/verify', async (req: AuthRequest, res: Response): Pr
     } catch (error) {
         console.error('Verify payment error:', error);
         res.status(500).json({ error: 'Failed to verify payment' });
+    }
+});
+
+/**
+ * DELETE /api/customers/payments/:id
+ * Remove a payment
+ */
+router.delete('/payments/:id', async (req: AuthRequest, res: Response) => {
+    try {
+        const { id } = req.params;
+        const { storeId } = req.context!;
+
+        const result = await query(
+            `DELETE FROM payments 
+             WHERE id = $1 AND store_id = $2
+             RETURNING id`,
+            [id, storeId]
+        );
+
+        if (result.rows.length === 0) {
+            res.status(404).json({ error: 'Payment not found' });
+            return;
+        }
+
+        res.json({ message: 'Payment removed successfully' });
+    } catch (error) {
+        console.error('Delete payment error:', error);
+        res.status(500).json({ error: 'Failed to delete payment' });
     }
 });
 
