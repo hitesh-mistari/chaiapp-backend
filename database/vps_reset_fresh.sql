@@ -7,14 +7,17 @@
 -- 3. Copy & Paste this WHOLE file.
 -- ==========================================
 
+-- 0️⃣  CLEANUP OLD MESS (Optional)
+DROP DATABASE IF EXISTS chaiapp_production;
+-- We also drop the new one if it exists to be safe
+DROP DATABASE IF EXISTS chai_production_v2;
+
 -- 1️⃣  CREATE NEW SECURE USER
 -- We use a specific, new user for safety.
 DROP USER IF EXISTS chai_deployer;
 CREATE USER chai_deployer WITH PASSWORD 'ChaiMaster_2025_Secure';
 
 -- 2️⃣  CREATE NEW DATABASE
--- We create a v2 database to avoid conflicts with the old one.
-DROP DATABASE IF EXISTS chai_production_v2;
 CREATE DATABASE chai_production_v2 OWNER chai_deployer;
 
 -- Grant privileges
