@@ -26,6 +26,10 @@ class NotificationService {
         // [CRITICAL] Immediate Open Comment
         res.write(': open\n\n');
 
+        // [SSE Fix] Send 2KB of padding to flush Nginx/Proxy buffers
+        const padding = ': ' + ' '.repeat(2048) + '\n\n';
+        res.write(padding);
+
         // Initial connection established message
         this.sendEventToClient(client, 'connected', {
             message: 'SSE Connection Established',

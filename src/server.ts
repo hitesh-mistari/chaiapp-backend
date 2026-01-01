@@ -41,6 +41,9 @@ import {
 } from './middleware/security.js';
 
 const app = express();
+// Trust the first proxy (Nginx/Cloudflare) - Critical for Rate Limiting & Secure Cookies in Prod
+app.set('trust proxy', 1);
+
 const PORT = process.env.PORT || 3001;
 const IS_PRODUCTION = process.env.NODE_ENV === 'production';
 
@@ -222,9 +225,32 @@ import historyRoutes from './routes/history.routes.js';
 app.use('/api/history', historyRoutes);
 
 
-// 404 handler
-app.use((_req, res) => {
-    res.status(404).json({ error: 'Route not found' });
+// =============================================================================
+// PRODUCTION FRONTEND SERVING (STATIC + SPA)
+// =============================================================================
+
+// 1. API 404 Handler - MUST come before the catch-all * route
+// This ensures that missing API endpoints return JSON, not HTML
+app.use('/api/*', (_req, res) => {
+    res.status(404).json({ error: 'API route not found' });
+});
+
+// 2. Serve Static Files
+// Serve artifacts from the frontend build directory
+const frontendBuildPath = path.join(__dirname, '../../chaiapp-frontend/dist');
+app.use(express.static(frontendBuildPath));
+
+// 3. SPA Catch-All Handler
+// For any other request, send back index.html so React Router can handle it
+app.get('*', (req, res) => {
+    // Optional: Check if we are successfully serving the file
+    res.sendFile(path.join(frontendBuildPath, 'index.html'), (err) => {
+        if (err) {
+            console.error('Error sending index.html:', err);
+            // Fallback for development/missing build
+            res.status(500).send('Frontend build not found. Please run npm run build in the frontend directory.');
+        }
+    });
 });
 
 // Error handler

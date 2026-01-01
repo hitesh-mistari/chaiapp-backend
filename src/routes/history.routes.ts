@@ -19,7 +19,13 @@ router.get('/stream', authenticate, (req: AuthRequest, res: Response) => {
     res.setHeader('Content-Type', 'text/event-stream');
     res.setHeader('Cache-Control', 'no-cache, no-transform');
     res.setHeader('Connection', 'keep-alive');
+    res.setHeader('Content-Encoding', 'none'); // [SSE Fix] Disable gzip/brotli compression
     res.setHeader('X-Accel-Buffering', 'no'); // Disable buffering for Nginx
+
+    // [SSE Fix] Prevent simple request timeouts
+    req.socket.setTimeout(0);
+    req.socket.setNoDelay(true); // Disable Nagle's algorithm
+    req.socket.setKeepAlive(true);
 
     res.flushHeaders();
 
