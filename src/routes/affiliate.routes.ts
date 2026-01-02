@@ -64,7 +64,7 @@ router.get('/me', verifyToken, async (req: Request, res: Response) => {
         const affiliate = await getOrCreateAffiliate(userId, storeId, userName);
 
         // Get referral link
-        const baseUrl = process.env.FRONTEND_URL || 'https://chaitapri.com';
+        const baseUrl = process.env.FRONTEND_URL || 'https://cupcount.com';
         const referralLink = `${baseUrl}/signup?ref=${affiliate.referral_code}`;
 
         res.json({

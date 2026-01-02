@@ -41,6 +41,39 @@ router.post('/google', async (req: Request, res: Response) => {
 });
 
 /**
+ * POST /api/auth/facebook
+ * 
+ * Authenticate with Facebook OAuth
+ * 
+ * Body: { accessToken: string }
+ */
+router.post('/facebook', async (req: Request, res: Response) => {
+    try {
+        const { accessToken } = req.body;
+
+        if (!accessToken) {
+            res.status(400).json({ error: 'Facebook access token is required' });
+            return;
+        }
+
+        // Dynamic import to avoid circular dependency issues if any
+        const { authenticateWithFacebook } = await import('../services/facebook.service.js');
+        const authResponse = await authenticateWithFacebook(accessToken);
+
+        res.json(authResponse);
+    } catch (error) {
+        console.error('Facebook auth error:', error);
+
+        if (error instanceof Error && error.message.startsWith('Invalid Facebook token')) {
+            res.status(401).json({ error: error.message });
+            return;
+        }
+
+        res.status(500).json({ error: 'Authentication failed' });
+    }
+});
+
+/**
  * POST /api/auth/guest
  * Create and login as a guest
  */
