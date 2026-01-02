@@ -125,7 +125,8 @@ router.post('/', async (req: AuthRequest, res: Response) => {
         }
 
 
-        // --- CHECK CUSTOMER LIMIT START ---
+        // --- CHECK CUSTOMER LIMIT SKIPPED (UNLIMITED FREE PLAN) ---
+        /*
         // 1. Get current count
         const countResult = await query<{ count: string }>(
             'SELECT COUNT(*) as count FROM customers WHERE store_id = $1 AND is_active = true',
@@ -166,6 +167,7 @@ router.post('/', async (req: AuthRequest, res: Response) => {
             });
             return;
         }
+        */
         // --- CHECK CUSTOMER LIMIT END ---
 
         const customerId = id || uuidv4();
