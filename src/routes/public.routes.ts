@@ -98,9 +98,15 @@ router.get('/ledger/:slug', async (req: Request, res: Response): Promise<any> =>
             query('SELECT * FROM logs WHERE customer_id = $1 ORDER BY timestamp DESC', [customer.id]),
             query('SELECT * FROM payments WHERE customer_id = $1 ORDER BY paid_at DESC', [customer.id]),
             query(`
-                SELECT s.*, st.currency_symbol, st.store_name, st.upi_id as store_upi_id
+                SELECT 
+                    s.*, 
+                    st.currency_symbol, 
+                    st.store_name, 
+                    st.upi_id as store_upi_id,
+                    u.referral_code
                 FROM stores st
                 LEFT JOIN store_settings s ON s.store_id = st.id
+                LEFT JOIN users u ON st.user_id = u.id
                 WHERE st.id = $1
             `, [customer.store_id])
         ]);
@@ -139,7 +145,8 @@ router.get('/ledger/:slug', async (req: Request, res: Response): Promise<any> =>
                 currencySymbol: sRow?.currency_symbol || '₹',
                 soundEnabled: sRow?.sound_enabled ?? true,
                 products: Array.isArray(sRow?.products) ? sRow?.products : [],
-                upiId: sRow?.store_upi_id || sRow?.upi_id || ''
+                upiId: sRow?.store_upi_id || sRow?.upi_id || '',
+                referralCode: sRow?.referral_code || ''
             }
         });
     } catch (error) {

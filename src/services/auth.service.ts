@@ -77,9 +77,17 @@ export async function verifyGoogleToken(idToken: string): Promise<GoogleUser> {
  * 5. Generate JWT
  * 6. Return auth response
  */
-export async function authenticateWithGoogle(idToken: string): Promise<AuthResponse> {
+
+function generateReferralCode(name: string): string {
+    const prefix = name.substring(0, 4).toUpperCase().replace(/[^A-Z]/g, 'USER');
+    const random = Math.floor(Math.random() * 9000 + 1000); // 4 digit random
+    return `${prefix}${random}`;
+}
+
+export async function authenticateWithGoogle(idToken: string, referralCode?: string): Promise<AuthResponse> {
     // Step 1: Verify Google token
     const googleUser = await verifyGoogleToken(idToken);
+
 
     // Step 2: Check if user exists
     const existingUser = await query<{
@@ -109,12 +117,22 @@ export async function authenticateWithGoogle(idToken: string): Promise<AuthRespo
         isNewUser = true;
 
         const result = await transaction(async (client) => {
-            // Create user
+            // 1. Resolve Referrer
+            let referrerId: string | null = null;
+            if (referralCode) {
+                const referrer = await client.query('SELECT id FROM users WHERE referral_code = $1', [referralCode]);
+                if (referrer.rows.length > 0) referrerId = referrer.rows[0].id;
+            }
+
+            // 2. Generate Code
+            const newCode = generateReferralCode(googleUser.name);
+
+            // 3. Create user
             const userResult = await client.query<{ id: string }>(
-                `INSERT INTO users (google_id, email, name, picture, email_verified)
-         VALUES ($1, $2, $3, $4, $5)
-         RETURNING id`,
-                [googleUser.googleId, googleUser.email, googleUser.name, googleUser.picture || null, true]
+                `INSERT INTO users (google_id, email, name, picture, email_verified, referral_code, referred_by_id)
+                 VALUES ($1, $2, $3, $4, $5, $6, $7)
+                 RETURNING id`,
+                [googleUser.googleId, googleUser.email, googleUser.name, googleUser.picture || null, true, newCode, referrerId]
             );
 
             const newUserId = userResult.rows[0].id;
@@ -147,6 +165,15 @@ export async function authenticateWithGoogle(idToken: string): Promise<AuthRespo
                     { id: 'coffee', name: 'Coffee', price: 15, color: '#6b3308', icon: '☕' }
                 ])]
             );
+
+            // 4. Create Commission (Pending) if referred
+            if (referrerId) {
+                await client.query(
+                    `INSERT INTO commissions (referrer_id, referred_user_id, amount, status)
+                     VALUES ($1, $2, 200, 'PENDING')`,
+                    [referrerId, newUserId]
+                );
+            }
 
             return { userId: newUserId };
         });
@@ -242,7 +269,7 @@ export async function getUserAndStore(userId: string) {
 /**
  * Register a new user with Email/Password
  */
-export async function registerWithPassword(email: string, password: string, name: string): Promise<AuthResponse> {
+export async function registerWithPassword(email: string, password: string, name: string, referralCode?: string): Promise<AuthResponse> {
     // Check if user exists
     const existingUser = await query<{ id: string }>('SELECT id FROM users WHERE email = $1', [email]);
     if (existingUser.rows.length > 0) {
@@ -253,12 +280,22 @@ export async function registerWithPassword(email: string, password: string, name
     const verificationToken = crypto.randomBytes(32).toString('hex');
 
     const result = await transaction(async (client) => {
-        // Create user
+        // 1. Resolve Referrer
+        let referrerId: string | null = null;
+        if (referralCode) {
+            const referrer = await client.query('SELECT id FROM users WHERE referral_code = $1', [referralCode]);
+            if (referrer.rows.length > 0) referrerId = referrer.rows[0].id;
+        }
+
+        // 2. Generate Code
+        const newCode = generateReferralCode(name);
+
+        // 3. Create user
         const userResult = await client.query<{ id: string }>(
-            `INSERT INTO users (email, name, password_hash, verification_token, email_verified)
-             VALUES ($1, $2, $3, $4, $5)
-             RETURNING id`,
-            [email, name, passwordHash, verificationToken, false]
+            `INSERT INTO users (email, name, password_hash, verification_token, email_verified, referral_code, referred_by_id)
+                 VALUES ($1, $2, $3, $4, $5, $6, $7)
+                 RETURNING id`,
+            [email, name, passwordHash, verificationToken, false, newCode, referrerId]
         );
 
         const newUserId = userResult.rows[0].id;
@@ -283,6 +320,15 @@ export async function registerWithPassword(email: string, password: string, name
                 { id: 'coffee', name: 'Coffee', price: 15, color: '#6b3308', icon: '☕' }
             ])]
         );
+
+        // 4. Create Commission (Pending) if referred
+        if (referrerId) {
+            await client.query(
+                `INSERT INTO commissions (referrer_id, referred_user_id, amount, status)
+                 VALUES ($1, $2, 200, 'PENDING')`,
+                [referrerId, newUserId]
+            );
+        }
 
         return { userId: newUserId };
     });

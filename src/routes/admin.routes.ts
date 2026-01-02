@@ -1,14 +1,14 @@
 import { Router, Request, Response } from 'express';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-import pool from '../config/database';
+import pool from '../config/database.js';
 import {
     verifyAdminEmail,
     verifyAdminIP,
     getClientIP,
     adminLoginRateLimiter,
     logSecurityEvent
-} from '../middleware/security';
+} from '../middleware/security.js';
 
 const router = Router();
 
@@ -298,7 +298,7 @@ router.get('/stats', verifyAdminToken, async (_req: Request, res: Response) => {
         const todayRevenueResult = await pool.query(
             `SELECT COALESCE(SUM(amount), 0) as total 
              FROM payments 
-             WHERE DATE(paid_at / 1000) = CURRENT_DATE`
+             WHERE TO_TIMESTAMP(paid_at / 1000)::date = CURRENT_DATE`
         );
         const revenueToday = parseFloat(todayRevenueResult.rows[0].total);
 
@@ -557,7 +557,22 @@ router.get('/affiliates', verifyAdminToken, async (req: Request, res: Response) 
     try {
         const { status, search } = req.query;
 
-        let query = 'SELECT * FROM admin_affiliate_overview WHERE 1=1';
+        let query = `
+                SELECT 
+                    affiliate_id,
+                    affiliate_name as name,
+                    email,
+                    referral_code,
+                    status,
+                    joined_date as created_at,
+                    total_signups,
+                    paid_signups,
+                    pending_amount,
+                    paid_amount,
+                    available_balance
+                FROM admin_affiliate_overview 
+                WHERE 1=1
+            `;
         const params: any[] = [];
         let paramCount = 1;
 
@@ -673,7 +688,7 @@ router.post('/affiliates/:affiliateId/activate', verifyAdminToken, async (req: R
  */
 router.get('/referrals', verifyAdminToken, async (req: Request, res: Response) => {
     try {
-        const { status, commissionStatus } = req.query;
+        const { status, commissionStatus, paymentStatus } = req.query;
 
         let query = 'SELECT * FROM admin_referral_details WHERE 1=1';
         const params: any[] = [];
@@ -691,6 +706,12 @@ router.get('/referrals', verifyAdminToken, async (req: Request, res: Response) =
             paramCount++;
         }
 
+        if (paymentStatus) {
+            query += ` AND payment_status = $${paramCount}`;
+            params.push(paymentStatus);
+            paramCount++;
+        }
+
         query += ' ORDER BY referral_date DESC LIMIT 500';
 
         const result = await pool.query(query, params);
@@ -700,6 +721,81 @@ router.get('/referrals', verifyAdminToken, async (req: Request, res: Response) =
         res.status(500).json({ error: 'Failed to fetch referrals' });
     }
 });
+
+/**
+ * POST /api/admin/commissions/:commissionId/approve
+ * Approve a pending commission (moves to Available Balance)
+ */
+router.post('/commissions/:commissionId/approve', verifyAdminToken, async (req: Request, res: Response) => {
+    try {
+        const { commissionId } = req.params;
+        const admin = (req as any).admin;
+
+        // Update commission status
+        const result = await pool.query(
+            `UPDATE commissions 
+             SET status = 'APPROVED', updated_at = NOW()
+             WHERE id = $1 AND status = 'PENDING'
+             RETURNING id`,
+            [commissionId]
+        );
+
+        if (result.rows.length === 0) {
+            res.status(404).json({ error: 'Commission not found or not pending' });
+            return;
+        }
+
+        // Log activity
+        await pool.query(
+            `INSERT INTO admin_activity_logs (admin_id, action, target_type, target_id)
+             VALUES ($1, $2, $3, $4)`,
+            [admin.id, 'approve_commission', 'commission', commissionId]
+        );
+
+        res.json({ message: 'Commission approved successfully' });
+    } catch (error) {
+        console.error('Approve commission error:', error);
+        res.status(500).json({ error: 'Failed to approve commission' });
+    }
+});
+
+/**
+ * POST /api/admin/commissions/:commissionId/reject
+ * Reject a commission
+ */
+router.post('/commissions/:commissionId/reject', verifyAdminToken, async (req: Request, res: Response) => {
+    try {
+        const { commissionId } = req.params;
+        const admin = (req as any).admin;
+
+        // Update commission status
+        const result = await pool.query(
+            `UPDATE commissions 
+             SET status = 'REJECTED', updated_at = NOW()
+             WHERE id = $1 AND status = 'PENDING'
+             RETURNING id`,
+            [commissionId]
+        );
+
+        if (result.rows.length === 0) {
+            res.status(404).json({ error: 'Commission not found or not pending' });
+            return;
+        }
+
+        // Log activity
+        await pool.query(
+            `INSERT INTO admin_activity_logs (admin_id, action, target_type, target_id)
+             VALUES ($1, $2, $3, $4)`,
+            [admin.id, 'reject_commission', 'commission', commissionId]
+        );
+
+        res.json({ message: 'Commission rejected successfully' });
+    } catch (error) {
+        console.error('Reject commission error:', error);
+        res.status(500).json({ error: 'Failed to reject commission' });
+    }
+});
+
 
 // ==================== PAYOUT MANAGEMENT ====================
 
@@ -712,27 +808,33 @@ router.get('/payouts', verifyAdminToken, async (req: Request, res: Response) => 
         const { status } = req.query;
 
         let query = `
-            SELECT 
-                ap.*,
-                u.name AS user_name,
-                u.email AS user_email,
-                a.referral_code,
-                a.available_balance
-            FROM affiliate_payouts ap
-            JOIN users u ON u.id = ap.user_id
-            JOIN affiliates a ON a.id = ap.affiliate_id
-            WHERE 1=1
-        `;
+                SELECT 
+                    p.id,
+                    p.affiliate_id,
+                    p.amount,
+                    p.status,
+                    p.payout_details->>'upi_id' as upi_id,
+                    p.payout_reference,
+                    p.payout_note,
+                    p.created_at,
+                    a.name AS user_name,
+                    a.email AS user_email,
+                    a.referral_code,
+                    a.available_balance
+                FROM affiliate_payouts p
+                JOIN affiliates a ON a.id = p.affiliate_id
+                WHERE 1=1
+            `;
         const params: any[] = [];
         let paramCount = 1;
 
         if (status) {
-            query += ` AND ap.status = $${paramCount}`;
+            query += ` AND p.status = $${paramCount}`;
             params.push(status);
             paramCount++;
         }
 
-        query += ' ORDER BY ap.created_at DESC';
+        query += ' ORDER BY p.created_at DESC';
 
         const result = await pool.query(query, params);
         res.json(result.rows);
@@ -757,75 +859,35 @@ router.post('/payouts/:payoutId/approve', verifyAdminToken, async (req: Request,
             return;
         }
 
-        const client = await pool.connect();
-
-        try {
-            await client.query('BEGIN');
-
-            // Get payout details
-            const payoutResult = await client.query(
-                'SELECT * FROM affiliate_payouts WHERE id = $1',
-                [payoutId]
-            );
-
-            if (payoutResult.rows.length === 0) {
-                throw new Error('Payout not found');
-            }
-
-            const payout = payoutResult.rows[0];
-
-            if (payout.status !== 'pending') {
-                throw new Error('Payout is not in pending status');
-            }
-
-            // Update payout status
-            await client.query(
-                `UPDATE affiliate_payouts 
-                 SET status = 'paid', 
+        // Update payout status
+        const result = await pool.query(
+            `UPDATE payouts 
+                 SET status = 'PAID', 
                      payout_reference = $1, 
                      payout_note = $2,
                      processed_by = $3,
                      processed_at = NOW()
-                 WHERE id = $4`,
-                [payoutReference, payoutNote, admin.id, payoutId]
-            );
+                 WHERE id = $4
+                 RETURNING user_id, amount`,
+            [payoutReference, payoutNote, admin.id, payoutId]
+        );
 
-            // Update affiliate balance
-            await client.query(
-                `UPDATE affiliates 
-                 SET total_withdrawn = total_withdrawn + $1,
-                     available_balance = available_balance - $1
-                 WHERE id = $2`,
-                [payout.amount, payout.affiliate_id]
-            );
-
-            // Log activity
-            await client.query(
-                `INSERT INTO admin_activity_logs (admin_id, action, target_type, target_id, details)
-                 VALUES ($1, $2, $3, $4, $5)`,
-                [admin.id, 'approve_payout', 'payout', payoutId, JSON.stringify({
-                    amount: payout.amount,
-                    reference: payoutReference
-                })]
-            );
-
-            await client.query('COMMIT');
-
-            res.json({
-                message: 'Payout approved successfully',
-                payoutReference
-            });
-        } catch (error) {
-            await client.query('ROLLBACK');
-            throw error;
-        } finally {
-            client.release();
+        if (result.rows.length === 0) {
+            res.status(404).json({ error: 'Payout not found' });
+            return;
         }
+
+        // Log activity
+        await pool.query(
+            `INSERT INTO admin_activity_logs (admin_id, action, target_type, target_id)
+                 VALUES ($1, $2, $3, $4)`,
+            [admin.id, 'approve_payout', 'payout', payoutId]
+        );
+
+        res.json({ message: 'Payout approved successfully' });
     } catch (error) {
         console.error('Approve payout error:', error);
-        res.status(500).json({
-            error: error instanceof Error ? error.message : 'Failed to approve payout'
-        });
+        res.status(500).json({ error: 'Failed to approve payout' });
     }
 });
 
@@ -844,20 +906,26 @@ router.post('/payouts/:payoutId/reject', verifyAdminToken, async (req: Request, 
             return;
         }
 
-        await pool.query(
-            `UPDATE affiliate_payouts 
-             SET status = 'rejected', 
-                 rejected_reason = $1,
-                 processed_by = $2,
-                 processed_at = NOW()
-             WHERE id = $3`,
+        const result = await pool.query(
+            `UPDATE payouts 
+                 SET status = 'REJECTED', 
+                     rejected_reason = $1,
+                     processed_by = $2,
+                     processed_at = NOW()
+                 WHERE id = $3
+                 RETURNING id`,
             [reason, admin.id, payoutId]
         );
+
+        if (result.rows.length === 0) {
+            res.status(404).json({ error: 'Payout not found' });
+            return;
+        }
 
         // Log activity
         await pool.query(
             `INSERT INTO admin_activity_logs (admin_id, action, target_type, target_id, details)
-             VALUES ($1, $2, $3, $4, $5)`,
+                 VALUES ($1, $2, $3, $4, $5)`,
             [admin.id, 'reject_payout', 'payout', payoutId, JSON.stringify({ reason })]
         );
 

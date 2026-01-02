@@ -13,8 +13,23 @@ if (result.error) {
 
 
 
+
 // Import config (requires environment variables)
 import { pool, closePool } from './config/database.js';
+
+// Auto-migration on startup
+(async function runMigrations() {
+    try {
+        console.log('--- Checking DB Schema ---');
+        await pool.query('ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS customer_limit INTEGER DEFAULT 10');
+        await pool.query('ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS provider VARCHAR(50)');
+        await pool.query('ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS subscription_id VARCHAR(255)');
+        await pool.query('CREATE EXTENSION IF NOT EXISTS "uuid-ossp"');
+        console.log('✅ DB Schema verified/patched');
+    } catch (err: any) {
+        console.error('❌ DB Auto-Migration Failed:', err.message);
+    }
+})();
 
 // Import routes
 import authRoutes from './routes/auth.routes.js';
@@ -23,6 +38,7 @@ import customersRoutes from './routes/customers.routes.js';
 import settingsRoutes from './routes/settings.routes.js';
 import adminRoutes from './routes/admin.routes.js';
 import affiliateRoutes from './routes/affiliate.routes.js';
+import subscriptionRoutes from './routes/subscription.routes.js';
 import webhookRoutes from './routes/webhook.routes.js';
 import publicRoutes from './routes/public.routes.js';
 import path from 'path';
@@ -208,7 +224,9 @@ app.use('/api/auth', authRateLimiter, authRoutes);
 app.use('/api/auth', authRateLimiter, passwordResetRoutes);
 
 // Affiliate routes - Standard rate limiting
+// Affiliate routes - Standard rate limiting
 app.use('/api/affiliate', generalRateLimiter, affiliateRoutes);
+app.use('/api/subscription', generalRateLimiter, subscriptionRoutes);
 
 // Webhook routes - No rate limiting (external services)
 app.use('/api/webhooks', webhookRoutes);

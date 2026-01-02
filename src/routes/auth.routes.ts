@@ -18,14 +18,21 @@ const router = Router();
  */
 router.post('/google', async (req: Request, res: Response) => {
     try {
-        const { idToken } = req.body;
+
+        const { idToken, referralCode } = req.body;
 
         if (!idToken) {
             res.status(400).json({ error: 'Google ID token is required' });
             return;
         }
 
-        const authResponse = await authenticateWithGoogle(idToken);
+
+        const authResponse = await authenticateWithGoogle(idToken, referralCode);
+
+        // Auto-fix for white screen: ensure store values are never undefined
+        if (authResponse.store && !authResponse.store.currencySymbol) {
+            authResponse.store.currencySymbol = '₹';
+        }
 
         res.json(authResponse);
     } catch (error) {
@@ -60,14 +67,14 @@ router.post('/guest', async (_req: Request, res: Response) => {
  */
 router.post('/register', async (req: Request, res: Response) => {
     try {
-        const { email, password, name } = req.body;
+        const { email, password, name, referralCode } = req.body;
 
         if (!email || !password || !name) {
             res.status(400).json({ error: 'All fields are required' });
             return;
         }
 
-        const authResponse = await import('../services/auth.service.js').then(s => s.registerWithPassword(email, password, name));
+        const authResponse = await import('../services/auth.service.js').then(s => s.registerWithPassword(email, password, name, referralCode));
         res.status(201).json(authResponse);
     } catch (error: any) {
         if (error.message === 'User already exists') {

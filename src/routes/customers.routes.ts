@@ -124,6 +124,50 @@ router.post('/', async (req: AuthRequest, res: Response) => {
             return;
         }
 
+
+        // --- CHECK CUSTOMER LIMIT START ---
+        // 1. Get current count
+        const countResult = await query<{ count: string }>(
+            'SELECT COUNT(*) as count FROM customers WHERE store_id = $1 AND is_active = true',
+            [storeId]
+        );
+        const currentCount = parseInt(countResult.rows[0].count);
+
+        // 2. Mock subscription limit for development/debugging if table access fails, 
+        // OR better yet, just default to 10 if the query fails, instead of crashing.
+        let limit = 10;
+        try {
+            const subResult = await query<{ customer_limit: number, status: string, end_date: Date }>(
+                `SELECT customer_limit, status, end_date 
+                 FROM subscriptions 
+                 WHERE store_id = $1 AND status = 'active' 
+                 ORDER BY created_at DESC LIMIT 1`,
+                [storeId]
+            );
+
+            if (subResult.rows.length > 0) {
+                const sub = subResult.rows[0];
+                if (!sub.end_date || new Date(sub.end_date) > new Date()) {
+                    limit = sub.customer_limit;
+                }
+            }
+        } catch (subError) {
+            console.warn('Failed to check subscription limit, defaulting to 10:', subError);
+            // Fallback to default limit if table is missing or query fails
+            limit = 10;
+        }
+
+        if (currentCount >= limit) {
+            res.status(403).json({
+                error: 'Customer limit reached',
+                isLimitReached: true,
+                limit,
+                message: `You have reached the limit of ${limit} customers. Please upgrade to Pro for unlimited access.`
+            });
+            return;
+        }
+        // --- CHECK CUSTOMER LIMIT END ---
+
         const customerId = id || uuidv4();
 
         const result = await query<{ id: string }>(
