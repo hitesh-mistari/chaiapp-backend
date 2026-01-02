@@ -25,6 +25,17 @@ import { pool, closePool } from './config/database.js';
         await pool.query('ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS provider VARCHAR(50)');
         await pool.query('ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS subscription_id VARCHAR(255)');
         await pool.query('CREATE EXTENSION IF NOT EXISTS "uuid-ossp"');
+
+        // Fix for referral system
+        await pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS referral_code VARCHAR(20) UNIQUE');
+        await pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS referred_by_id UUID REFERENCES users(id) ON DELETE SET NULL');
+
+        // Backfill referral codes for existing users
+        await pool.query(`UPDATE users SET referral_code = UPPER(SUBSTRING(email, 1, 4) || floor(random() * 9999 + 1000)::text) WHERE referral_code IS NULL`);
+
+        // Enforce not null checks after backfill
+        await pool.query('ALTER TABLE users ALTER COLUMN referral_code SET NOT NULL');
+
         console.log('✅ DB Schema verified/patched');
     } catch (err: any) {
         console.error('❌ DB Auto-Migration Failed:', err.message);

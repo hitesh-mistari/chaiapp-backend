@@ -432,7 +432,7 @@ router.get('/payments/all', async (req: AuthRequest, res: Response) => {
             paidAt: parseInt(row.paid_at) || new Date(row.payment_date || row.created_at).getTime(),
             status: row.status || 'completed',
             receiptUrl: row.receipt_url,
-            customerName: row.customer_name // Helper for frontend
+            customerName: row.customer_name || 'Walk-in Customer' // Helper for frontend
         }));
 
         console.log(`[DEBUG] Fetched ${payments.length} payments for store ${storeId}`);
