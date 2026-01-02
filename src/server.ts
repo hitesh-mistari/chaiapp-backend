@@ -128,7 +128,12 @@ app.use((_req, res, next) => {
 
 // CORS configuration
 const allowedOrigins = (IS_PRODUCTION
-    ? [process.env.FRONTEND_URL || 'https://yourdomain.com']
+    ? [
+        process.env.FRONTEND_URL,
+        'https://chaiapp-frontend.vercel.app',
+        'https://chaibook.shop',
+        'https://chai.69.28.88.246.sslip.io'
+    ]
     : [
         'http://localhost:3000',
         'http://127.0.0.1:3000',
@@ -200,7 +205,7 @@ app.use((req, _res, next) => {
 // Health check (no rate limit)
 app.get('/health', async (_req, res) => {
     try {
-        // Check database connection
+        // Check database connection    
         await pool.query('SELECT 1');
         res.json({
             status: 'ok',
@@ -260,7 +265,7 @@ app.use(express.static(frontendBuildPath));
 
 // 3. SPA Catch-All Handler
 // For any other request, send back index.html so React Router can handle it
-app.get('*', (req, res) => {
+app.get('*', (_req, res) => {
     // Optional: Check if we are successfully serving the file
     res.sendFile(path.join(frontendBuildPath, 'index.html'), (err) => {
         if (err) {

@@ -9,3 +9,4 @@ coverage
 public/uploads/*
 !public/uploads/.gitkeep
 
+.env

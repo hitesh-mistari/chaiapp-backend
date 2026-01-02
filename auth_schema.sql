@@ -6,6 +6,7 @@ CREATE TABLE IF NOT EXISTS users (
     name VARCHAR(255) NOT NULL,
     picture TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    
     last_login_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
