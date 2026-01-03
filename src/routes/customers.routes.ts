@@ -394,8 +394,8 @@ router.post('/:id/logs', async (req: AuthRequest, res: Response) => {
         const customerId = id === 'walk-in' ? null : id;
 
         await query(
-            `INSERT INTO logs (id, customer_id, store_id, product_type, count, price_at_time)
-             VALUES ($1, $2, $3, $4, $5, $6)`,
+            `INSERT INTO logs (id, customer_id, store_id, product_type, drink_type, count, price_at_time)
+             VALUES ($1, $2, $3, $4, $4, $5, $6)`,
             [logId || uuidv4(), customerId, storeId, productType, count, priceAtTime]
         );
 

@@ -2,9 +2,14 @@ import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import dotenv from 'dotenv';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
-// Load environment variables IMMEDIATELY
-const result = dotenv.config();
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// Load environment variables IMMEDIATELY with explicit path
+const result = dotenv.config({ path: path.join(__dirname, '../.env') });
 if (result.error) {
     console.error('❌ Failed to load .env in server.ts:', result.error.message);
 } else {
@@ -52,11 +57,7 @@ import affiliateRoutes from './routes/affiliate.routes.js';
 import subscriptionRoutes from './routes/subscription.routes.js';
 import webhookRoutes from './routes/webhook.routes.js';
 import publicRoutes from './routes/public.routes.js';
-import path from 'path';
-import { fileURLToPath } from 'url';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 
 // Import security middleware
 import {

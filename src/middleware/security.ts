@@ -67,11 +67,11 @@ export const getClientIP = (req: Request): string => {
 
 /**
  * Strict rate limiter for admin routes
- * 20 requests per 15 minutes per IP
+ * 100 requests per 15 minutes per IP (Relaxed for dev)
  */
 export const adminRateLimiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutes
-    max: 20,
+    max: 100,
     message: 'Too many admin requests, please try again later',
     standardHeaders: true,
     legacyHeaders: false,
@@ -108,11 +108,11 @@ export const adminLoginRateLimiter = rateLimit({
 
 /**
  * Rate limiter for auth endpoints
- * 100 requests per 15 minutes per IP (Increased for development/active usage)
+ * 500 requests per 15 minutes per IP (Increased for development/active usage)
  */
 export const authRateLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,
-    max: 100,
+    max: 500,
     standardHeaders: true,
     legacyHeaders: false,
     handler: (req, res) => {
@@ -126,11 +126,11 @@ export const authRateLimiter = rateLimit({
 
 /**
  * Rate limiter for affiliate endpoints
- * 100 requests per hour per IP
+ * 1000 requests per hour per IP
  */
 export const affiliateRateLimiter = rateLimit({
     windowMs: 60 * 60 * 1000, // 1 hour
-    max: 100,
+    max: 1000,
     standardHeaders: true,
     legacyHeaders: false,
     handler: (_req, res) => {
@@ -140,11 +140,11 @@ export const affiliateRateLimiter = rateLimit({
 
 /**
  * General API rate limiter
- * 300 requests per 15 minutes per IP
+ * 1000 requests per 15 minutes per IP (Relaxed for dev)
  */
 export const generalRateLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,
-    max: 300,
+    max: 1000,
     standardHeaders: true,
     legacyHeaders: false,
     handler: (_req, res) => {

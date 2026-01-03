@@ -79,6 +79,7 @@ router.post('/ledger/confirm-payment', async (req: Request, res: Response) => {
 router.get('/ledger/:slug', async (req: Request, res: Response): Promise<any> => {
     try {
         const { slug } = req.params;
+        const { code } = req.query;
 
         // Find customer by slug
         // Since slugs aren't stored, we have to match the logic: generateSlug(name)-shortId
@@ -93,62 +94,92 @@ router.get('/ledger/:slug', async (req: Request, res: Response): Promise<any> =>
             return res.status(404).json({ error: 'Customer not found' });
         }
 
-        // Fetch logs and payments
-        const [logs, payments, settings] = await Promise.all([
-            query('SELECT * FROM logs WHERE customer_id = $1 ORDER BY timestamp DESC', [customer.id]),
-            query('SELECT * FROM payments WHERE customer_id = $1 ORDER BY paid_at DESC', [customer.id]),
-            query(`
-                SELECT 
-                    s.*, 
-                    st.currency_symbol, 
-                    st.store_name, 
-                    st.upi_id as store_upi_id,
-                    u.referral_code
-                FROM stores st
-                LEFT JOIN store_settings s ON s.store_id = st.id
-                LEFT JOIN users u ON st.user_id = u.id
-                WHERE st.id = $1
-            `, [customer.store_id])
-        ]);
+        // Logic for Locked State
+        let isLocked = true;
+        if (code && typeof code === 'string' && customer.phone) {
+            // Clean phone numbers
+            const cleanCustomerPhone = customer.phone.replace(/[\s\-\(\)]/g, '');
+            const cleanCode = code.replace(/[\s\-\(\)]/g, '');
 
-        const sRow = settings.rows[0];
+            // Check if code matches last 4 digits
+            if (cleanCustomerPhone.length >= 4 && cleanCustomerPhone.endsWith(cleanCode)) {
+                isLocked = false;
+            }
+        }
 
-        return res.json({
+        // Base Response (Public Safe Data)
+        const responseData: any = {
             customer: {
-                id: customer.id,
+                id: customer.id, // Needed for ID checks but safe enough? ideally obscure it but frontend uses it heavily
                 name: customer.name,
                 office: customer.office,
                 storeId: customer.store_id
             },
-            logs: logs.rows.map(r => ({
-                id: r.id,
-                customerId: r.customer_id,
-                timestamp: parseInt(r.timestamp),
-                count: r.count,
-                productType: r.drink_type,
-                priceAtTime: parseFloat(r.price_at_time)
-            })),
-            payments: payments.rows.map(r => ({
-                id: r.id,
-                customerId: r.customer_id,
-                monthStr: r.month_str,
-                amount: parseFloat(r.amount),
-                paidAt: parseInt(r.paid_at),
-                status: r.status,
-                receiptUrl: r.receipt_url || null
-            })),
-            settings: {
-                pricePerChai: parseFloat(sRow?.price_per_chai || 10),
-                pricePerCoffee: parseFloat(sRow?.price_per_coffee || 15),
-                shopName: sRow?.shop_name || sRow?.store_name || 'My Chai Shop',
-                enableNotifications: sRow?.enable_notifications ?? false,
-                currencySymbol: sRow?.currency_symbol || '₹',
-                soundEnabled: sRow?.sound_enabled ?? true,
-                products: Array.isArray(sRow?.products) ? sRow?.products : [],
-                upiId: sRow?.store_upi_id || sRow?.upi_id || '',
-                referralCode: sRow?.referral_code || ''
-            }
-        });
+            settings: null,
+            locked: isLocked
+        };
+
+        // If Locked -> Return limited data (Just identity to urge unlock)
+        // We still need settings for shop name etc.
+        const storeId = customer.store_id;
+        const settingsResult = await query(`
+             SELECT 
+                 s.*, 
+                 st.currency_symbol, 
+                 st.store_name, 
+                 st.upi_id as store_upi_id,
+                 u.referral_code
+             FROM stores st
+             LEFT JOIN store_settings s ON s.store_id = st.id
+             LEFT JOIN users u ON st.user_id = u.id
+             WHERE st.id = $1
+         `, [storeId]);
+
+        const sRow = settingsResult.rows[0];
+        responseData.settings = {
+            pricePerChai: parseFloat(sRow?.price_per_chai || 10),
+            pricePerCoffee: parseFloat(sRow?.price_per_coffee || 15),
+            shopName: sRow?.shop_name || sRow?.store_name || 'My Chai Shop',
+            enableNotifications: sRow?.enable_notifications ?? false,
+            currencySymbol: sRow?.currency_symbol || '₹',
+            soundEnabled: sRow?.sound_enabled ?? true,
+            products: Array.isArray(sRow?.products) ? sRow?.products : [],
+            upiId: sRow?.store_upi_id || sRow?.upi_id || '',
+            referralCode: sRow?.referral_code || ''
+        };
+
+        if (isLocked) {
+            // Return just the shell
+            return res.json(responseData);
+        }
+
+        // If Unlocked -> Fetch Logs and Payments
+        const [logs, payments] = await Promise.all([
+            query('SELECT * FROM logs WHERE customer_id = $1 ORDER BY timestamp DESC', [customer.id]),
+            query('SELECT * FROM payments WHERE customer_id = $1 ORDER BY paid_at DESC', [customer.id]),
+        ]);
+
+        responseData.logs = logs.rows.map(r => ({
+            id: r.id,
+            customerId: r.customer_id,
+            timestamp: parseInt(r.timestamp),
+            count: r.count,
+            productType: r.drink_type,
+            priceAtTime: parseFloat(r.price_at_time)
+        }));
+
+        responseData.payments = payments.rows.map(r => ({
+            id: r.id,
+            customerId: r.customer_id,
+            monthStr: r.month_str,
+            amount: parseFloat(r.amount),
+            paidAt: parseInt(r.paid_at),
+            status: r.status,
+            receiptUrl: r.receipt_url || null
+        }));
+
+        return res.json(responseData);
+
     } catch (error) {
         console.error('Fetch public ledger error:', error);
         return res.status(500).json({ error: 'Internal server error' });
