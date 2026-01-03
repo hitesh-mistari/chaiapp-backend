@@ -332,8 +332,8 @@ router.get('/logs/all', async (req: AuthRequest, res: Response) => {
             id: row.id,
             customerId: row.customer_id,
             timestamp: new Date(row.created_at).getTime(),
-            count: row.quantity,
-            productType: row.drink_type,
+            count: row.count,
+            productType: row.product_type,
             priceAtTime: row.price_at_time ? parseFloat(row.price_at_time) : undefined
         }));
 
@@ -394,7 +394,7 @@ router.post('/:id/logs', async (req: AuthRequest, res: Response) => {
         const customerId = id === 'walk-in' ? null : id;
 
         await query(
-            `INSERT INTO logs (id, customer_id, store_id, drink_type, quantity, price_at_time)
+            `INSERT INTO logs (id, customer_id, store_id, product_type, count, price_at_time)
              VALUES ($1, $2, $3, $4, $5, $6)`,
             [logId || uuidv4(), customerId, storeId, productType, count, priceAtTime]
         );

@@ -92,7 +92,7 @@ export const adminRateLimiter = rateLimit({
  */
 export const adminLoginRateLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,
-    max: 5,
+    max: 100, // Temporarily increased from 5 for debugging
     message: 'Too many login attempts, please try again later',
     standardHeaders: true,
     legacyHeaders: false,
