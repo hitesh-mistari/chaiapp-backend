@@ -1,4 +1,5 @@
 import { Response } from 'express';
+import crypto from 'crypto';
 
 interface SSEClient {
     id: string;

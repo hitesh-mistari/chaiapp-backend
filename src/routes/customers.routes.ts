@@ -379,7 +379,7 @@ router.delete('/logs/:logId', async (req: AuthRequest, res: Response) => {
 router.post('/:id/logs', async (req: AuthRequest, res: Response) => {
     try {
         const { id } = req.params; // Customer ID
-        const { id: logId, count, productType, priceAtTime } = req.body;
+        const { id: logId, count, productType, priceAtTime, timestamp } = req.body;
         const { storeId } = req.context!;
 
         // Ensure customer belongs to store (skip check for walk-in)
@@ -394,9 +394,17 @@ router.post('/:id/logs', async (req: AuthRequest, res: Response) => {
         const customerId = id === 'walk-in' ? null : id;
 
         await query(
-            `INSERT INTO logs (id, customer_id, store_id, product_type, drink_type, count, price_at_time)
-             VALUES ($1, $2, $3, $4, $4, $5, $6)`,
-            [logId || uuidv4(), customerId, storeId, productType, count, priceAtTime]
+            `INSERT INTO logs (id, customer_id, store_id, product_type, drink_type, count, price_at_time, timestamp)
+             VALUES ($1, $2, $3, $4, $4, $5, $6, $7)`,
+            [
+                logId || uuidv4(),
+                customerId,
+                storeId,
+                productType,
+                count,
+                priceAtTime,
+                timestamp || Date.now()
+            ]
         );
 
         return res.json({ message: 'Log added' });

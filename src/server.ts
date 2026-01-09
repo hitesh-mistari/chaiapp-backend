@@ -14,6 +14,7 @@ if (result.error) {
     console.error('❌ Failed to load .env in server.ts:', result.error.message);
 } else {
     console.log('✅ Loaded .env in server.ts');
+    console.log('[DEBUG] GOOGLE_CLIENT_ID:', process.env.GOOGLE_CLIENT_ID);
 }
 
 

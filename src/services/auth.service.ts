@@ -87,6 +87,7 @@ function generateReferralCode(name: string): string {
 export async function authenticateWithGoogle(idToken: string, referralCode?: string): Promise<AuthResponse> {
     // Step 1: Verify Google token
     const googleUser = await verifyGoogleToken(idToken);
+    console.log('DEBUG: Authenticating Google User:', { googleId: googleUser.googleId, email: googleUser.email, name: googleUser.name });
 
 
     // Step 2: Check if user exists
